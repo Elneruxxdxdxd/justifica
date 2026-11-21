@@ -1,0 +1,115 @@
+// JustiFica · panel de la jefatura
+(function () {
+  'use strict';
+  var $ = JF.$, el = JF.el, ultimoReporte = null;
+  var NOMBRES = { plazo_dias_habiles: 'Plazo para pedir (días hábiles)', max_dias_sin_revision: 'Días máximos sin revisión',
+    umbral_alerta_tutor: 'Justificantes para alertar al tutor', max_archivo_kb: 'Tamaño máximo del comprobante (KB)',
+    correo_jefatura: 'Correo que recibe casos y reportes', periodo: 'Nombre del periodo', periodo_inicio: 'Inicio del periodo (AAAA-MM-DD)',
+    periodo_fin: 'Fin del periodo (AAAA-MM-DD)' };
+
+  function cargar(aviso) {
+    JF.api('panel', {}, 'admin').then(function (r) {
+      if (!r.ok) return JF.msg('p-msg', 'error', r.mensaje);
+      if (aviso) JF.msg('p-msg', 'ok', aviso); else JF.msg('p-msg');
+      var k = r.kpis;
+      JF.poner($('kpis'));
+      [['Emitidos este mes', k.emitidos_mes], ['Por revisar', k.en_revision], ['No procedieron este mes', k.rechazados_mes],
+       ['Alertas a tutores', k.alertas_tutor], ['Segundos promedio de emisión automática', k.seg_emision]].forEach(function (x) {
+        $('kpis').appendChild(el('div', { class: 'kpi' }, el('b', { text: x[1] }), el('span', { class: 'muted', text: x[0] })));
+      });
+      pintarPendientes(r.pendientes);
+      var tb = JF.vaciar($('rec'));
+      r.recientes.forEach(function (s) {
+        tb.appendChild(el('tr', null, el('td', { text: s.folio }), el('td', null, s.alumno, el('br'), el('span', { class: 'muted', text: s.grupo })),
+          el('td', null, s.motivo, el('br'), el('span', { class: 'muted', text: s.fechas })), el('td', null, JF.badge(s.estado))));
+      });
+      if (!r.recientes.length) tb.appendChild(el('tr', null, el('td', { colspan: 4, class: 'muted', text: 'Sin solicitudes todavía.' })));
+      pintarReglas(r.reglas);
+    });
+  }
+
+  function pintarPendientes(lista) {
+    var cont = JF.vaciar($('pend'));
+    if (!lista.length) return cont.appendChild(el('p', { class: 'muted', text: 'No hay casos pendientes. 🎉' }));
+    lista.forEach(function (s) {
+      var comentario = el('input', { maxlength: 300, placeholder: 'Comentario (obligatorio si no procede)' });
+      var msg = el('div', { class: 'msg oculto' });
+      function decidir(decision, boton) {
+        JF.ocupado(boton, JF.api('revisar', { folio: s.folio, decision: decision, comentario: comentario.value }, 'admin')).then(function (r) {
+          if (!r.ok) { msg.className = 'msg err'; msg.textContent = r.mensaje; return; }
+          cargar(r.estado === 'EMITIDO' ? 'Folio ' + r.folio + ' aprobado: se avisó al alumno y a ' + r.avisos + ' docente(s).' : 'Folio ' + r.folio + ' marcado como «no procede»; el alumno recibió el motivo por correo.');
+        });
+      }
+      var bVer = s.tiene_archivo ? el('button', { type: 'button', class: 'sec small', text: 'Ver comprobante', on: { click: function () { verComprobante(s.folio, this); } } }) : null;
+      var bSi = el('button', { type: 'button', class: 'ok small', text: 'Aprobar', on: { click: function () { decidir('APROBAR', this); } } });
+      var bNo = el('button', { type: 'button', class: 'no small', text: 'No procede', on: { click: function () { decidir('RECHAZAR', this); } } });
+      cont.appendChild(el('div', { class: 'item' },
+        el('b', { text: s.folio }), ' · ', el('span', { class: 'muted', text: s.creada_en }), el('br'),
+        s.alumno + ' (' + s.num_control + ', ' + s.grupo + ') · ' + s.motivo + ' · ' + s.fechas, el('br'),
+        el('span', { class: 'badge EN_REVISION', text: s.regla }),
+        s.descripcion ? el('div', { class: 'muted', text: '«' + s.descripcion + '»' }) : null,
+        comentario, el('div', { class: 'acciones' }, bVer, bSi, bNo), msg));
+    });
+  }
+
+  function verComprobante(folio, boton) {
+    var ventana = window.open('', '_blank');   // se abre antes para que el navegador no la bloquee
+    JF.ocupado(boton, JF.api('comprobante', { folio: folio }, 'admin'), 'Abriendo…').then(function (r) {
+      if (!r.ok || ['application/pdf', 'image/jpeg', 'image/png'].indexOf(r.tipo) < 0) {
+        if (ventana) ventana.close();
+        return JF.msg('p-msg', 'error', r.mensaje || 'Tipo de archivo no permitido.');
+      }
+      var blob = JF.blobDeBase64(r.b64, r.tipo);
+      var url = URL.createObjectURL(blob);
+      if (ventana) { ventana.opener = null; ventana.location.href = url; }
+      else JF.descargar(blob, r.nombre || 'comprobante');
+      setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
+    });
+  }
+
+  function pintarReglas(reglas) {
+    var cont = JF.vaciar($('reglas'));
+    reglas.forEach(function (g) {
+      var id = 'regla-' + g.clave;
+      cont.appendChild(el('label', { for: id, text: NOMBRES[g.clave] || g.descripcion || g.clave }));
+      cont.appendChild(el('input', { id: id, 'data-clave': g.clave, value: g.valor, maxlength: 120 }));
+    });
+  }
+  $('g-guardar').addEventListener('click', function () {
+    var datos = {};
+    $('reglas').querySelectorAll('input[data-clave]').forEach(function (i) { datos[i.getAttribute('data-clave')] = i.value; });
+    JF.ocupado(this, JF.api('reglas', { reglas: datos }, 'admin'), 'Guardando…').then(function (r) {
+      if (!r.ok) return JF.msg('g-msg', 'error', r.mensaje);
+      JF.msg('g-msg', 'ok', r.actualizadas ? 'Se actualizaron ' + r.actualizadas + ' regla(s).' : 'No había cambios.');
+    });
+  });
+
+  // ---------- reporte ----------
+  var hoy = new Date();
+  $('r-mes').value = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
+  $('r-ver').addEventListener('click', function () {
+    var m = /^(\d{4})-(\d{2})$/.exec($('r-mes').value);
+    if (!m) return JF.poner($('r-res'), el('div', { class: 'msg err', text: 'Elige un mes.' }));
+    JF.ocupado(this, JF.api('reporte', { anio: m[1], mes: m[2] }, 'admin'), 'Consultando…').then(function (r) {
+      if (!r.ok) return JF.poner($('r-res'), el('div', { class: 'msg err', text: r.mensaje }));
+      ultimoReporte = r;
+      JF.mostrar('r-csv', true);
+      JF.poner($('r-res'), el('div', null,
+        el('p', null, 'Justificantes emitidos en ' + r.periodo_txt + ': ', el('b', { text: r.total })),
+        el('div', { class: 'scroll' }, el('table', null,
+          el('thead', null, el('tr', null, el('th', { text: 'Carrera' }), el('th', { text: 'Grupo' }), el('th', { text: 'Motivo' }), el('th', { text: 'Total' }))),
+          el('tbody', null, r.filas.length ? r.filas.map(function (f) {
+            return el('tr', null, el('td', { text: f.carrera }), el('td', { text: f.grupo }), el('td', { text: f.motivo }), el('td', { text: f.total }));
+          }) : el('tr', null, el('td', { colspan: 4, class: 'muted', text: 'Sin justificantes emitidos en el mes.' }))))),
+        r.alertas.length ? el('p', { class: 'muted', text: 'Alertas a tutores: ' + r.alertas.map(function (a) { return a.alumno + ' (' + a.grupo + ', ' + a.total + ')'; }).join('; ') }) : null));
+    });
+  });
+  $('r-csv').addEventListener('click', function () {
+    if (!ultimoReporte) return;
+    var filas = [['Carrera', 'Grupo', 'Motivo', 'Total']].concat(ultimoReporte.filas.map(function (f) { return [f.carrera, f.grupo, f.motivo, f.total]; }));
+    JF.descargar(new Blob([JF.csv(filas)], { type: 'text/csv;charset=utf-8' }), 'reporte_justifica_' + ultimoReporte.anio + '_' + String(ultimoReporte.mes).padStart(2, '0') + '.csv');
+  });
+
+  JF.pestanas('tabs');
+  JFAdmin.iniciar(['JEFATURA'], function () { cargar(); });
+})();

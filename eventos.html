@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8088; frame-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="img/logo.svg">
+<link rel="stylesheet" href="css/estilos.css">
+<title>JustiFica · Lista de evento</title>
+</head>
+<body>
+<header class="top"><img src="img/logo.svg" alt=""><div><div class="brand">Justi<b>Fica</b></div><div class="sub">Listas oficiales de eventos</div></div>
+  <div class="spacer"></div><div class="who oculto" id="quien"><span id="quien-nombre"></span><br><button class="sec small" id="salir" type="button">Salir</button></div></header>
+<main>
+  <section id="v-login" class="card">
+    <h1>Acceso de áreas organizadoras</h1>
+    <label for="l-correo">Correo institucional</label>
+    <input id="l-correo" type="email" autocomplete="username" maxlength="120">
+    <label for="l-pass">Contraseña</label>
+    <input id="l-pass" type="password" autocomplete="current-password" maxlength="200">
+    <button id="l-entrar" class="full" type="button">Entrar</button>
+    <div id="l-msg" class="msg oculto" role="alert"></div>
+  </section>
+  <section id="v-app" class="card oculto">
+    <h1>Cargar lista de asistentes</h1>
+    <p class="muted">Cada alumno de la lista recibe su justificante y sus docentes reciben un solo correo con todos sus alumnos.</p>
+    <label for="e-nombre">Nombre del evento</label><input id="e-nombre" maxlength="120">
+    <label for="e-area">Área organizadora</label><input id="e-area" maxlength="120">
+    <div class="row">
+      <div><label for="e-ini">Fecha de inicio</label><input id="e-ini" type="date"></div>
+      <div><label for="e-fin">Fecha de fin</label><input id="e-fin" type="date"></div>
+    </div>
+    <label for="e-archivo">Archivo CSV o TXT con los números de control (o pégalos abajo)</label>
+    <input id="e-archivo" type="file" accept=".csv,.txt,text/csv,text/plain">
+    <label for="e-lista">Números de control</label>
+    <textarea id="e-lista" placeholder="24660001&#10;24660002"></textarea>
+    <p class="muted" id="e-conteo"></p>
+    <button id="e-enviar" class="full ok" type="button">Emitir justificantes</button>
+    <div id="e-msg" class="msg oculto" role="alert"></div>
+    <div id="e-res"></div>
+  </section>
+</main>
+<footer>JustiFica · prototipo escolar con <span class="demo">datos simulados</span></footer>
+<script src="js/config.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/eventos.js"></script>
+</body>
+</html>

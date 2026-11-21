@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8088; frame-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="img/logo.svg">
+<link rel="stylesheet" href="css/estilos.css">
+<title>JustiFica · Jefatura</title>
+</head>
+<body>
+<header class="top"><img src="img/logo.svg" alt=""><div><div class="brand">Justi<b>Fica</b></div><div class="sub">Panel de la Jefatura de División</div></div>
+  <div class="spacer"></div><div class="who oculto" id="quien"><span id="quien-nombre"></span><br><button class="sec small" id="salir" type="button">Salir</button></div></header>
+<main class="wide">
+  <section id="v-login" class="card">
+    <h1>Acceso de la jefatura</h1>
+    <label for="l-correo">Correo institucional</label>
+    <input id="l-correo" type="email" autocomplete="username" maxlength="120">
+    <label for="l-pass">Contraseña</label>
+    <input id="l-pass" type="password" autocomplete="current-password" maxlength="200">
+    <button id="l-entrar" class="full" type="button">Entrar</button>
+    <div id="l-msg" class="msg oculto" role="alert"></div>
+  </section>
+  <section id="v-app" class="oculto">
+    <div class="kpis" id="kpis"></div>
+    <div class="tabs" id="tabs">
+      <button class="tab on" type="button" data-tab="t-pend">Por revisar</button>
+      <button class="tab" type="button" data-tab="t-rec">Recientes</button>
+      <button class="tab" type="button" data-tab="t-rep">Reporte</button>
+      <button class="tab" type="button" data-tab="t-reg">Reglas</button>
+    </div>
+    <div id="p-msg" class="msg oculto" role="alert"></div>
+    <div id="t-pend" class="card"><h1>Casos por revisar</h1><div id="pend"></div></div>
+    <div id="t-rec" class="card oculto"><h1>Últimas solicitudes</h1><div class="scroll"><table><thead><tr><th>Folio</th><th>Alumno</th><th>Motivo y fechas</th><th>Estado</th></tr></thead><tbody id="rec"></tbody></table></div></div>
+    <div id="t-rep" class="card oculto">
+      <h1>Reporte mensual</h1>
+      <div class="row"><div><label for="r-mes">Mes</label><input id="r-mes" type="month"></div></div>
+      <div class="acciones"><button id="r-ver" type="button">Ver reporte</button><button id="r-csv" type="button" class="sec oculto">Descargar CSV (Excel)</button></div>
+      <div id="r-res"></div>
+    </div>
+    <div id="t-reg" class="card oculto">
+      <h1>Reglas del trámite</h1>
+      <p class="muted">Los cambios aplican a las solicitudes nuevas.</p>
+      <div id="reglas"></div>
+      <button id="g-guardar" class="full" type="button">Guardar reglas</button>
+      <div id="g-msg" class="msg oculto" role="alert"></div>
+    </div>
+    <p class="muted">¿Hay un evento oficial? <a href="eventos.html">Cargar lista de asistentes</a></p>
+  </section>
+</main>
+<footer>JustiFica · prototipo escolar con <span class="demo">datos simulados</span></footer>
+<script src="js/config.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/jefatura.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8088; frame-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="img/logo.svg">
+<link rel="stylesheet" href="css/estilos.css">
+<title>JustiFica · Verificar justificante</title>
+</head>
+<body>
+<header class="top"><img src="img/logo.svg" alt=""><div><div class="brand">Justi<b>Fica</b></div><div class="sub">Verificación de justificantes</div></div></header>
+<main>
+  <section class="card">
+    <h1>Verificar un justificante</h1>
+    <p class="muted">Escribe el folio que aparece en el justificante (por ejemplo JF-2026-0001). Por privacidad solo se muestran datos parciales del alumno.</p>
+    <label for="v-folio">Folio</label>
+    <input id="v-folio" maxlength="20" autocomplete="off" placeholder="JF-2026-0001">
+    <button id="v-buscar" class="full" type="button">Verificar</button>
+    <div id="v-msg" class="msg oculto" role="alert"></div>
+    <div id="v-res"></div>
+  </section>
+</main>
+<footer>JustiFica · prototipo escolar con <span class="demo">datos simulados</span></footer>
+<script src="js/config.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/verificar.js"></script>
+</body>
+</html>

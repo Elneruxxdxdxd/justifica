@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8088; frame-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="img/logo.svg">
+<link rel="stylesheet" href="css/estilos.css">
+<title>JustiFica · Pedir justificante</title>
+</head>
+<body>
+<header class="top"><img src="img/logo.svg" alt=""><div><div class="brand">Justi<b>Fica</b></div><div class="sub">Justificantes de inasistencia</div></div>
+  <div class="spacer"></div><div class="who oculto" id="quien"><span id="quien-nombre"></span><br><button class="sec small" id="salir" type="button">Salir</button></div></header>
+<main>
+  <section id="v-login" class="card">
+    <h1>Entra con tu número de control</h1>
+    <label for="l-num">Número de control</label>
+    <input id="l-num" inputmode="numeric" autocomplete="username" maxlength="9" placeholder="8 dígitos">
+    <label for="l-nip">NIP</label>
+    <input id="l-nip" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6">
+    <button id="l-entrar" class="full" type="button">Entrar</button>
+    <div id="l-msg" class="msg oculto" role="alert"></div>
+    <p class="muted">¿Eres docente y quieres comprobar un justificante? <a href="verificar.html">Verificar un folio</a></p>
+  </section>
+
+  <section id="v-app" class="oculto">
+    <div class="tabs" id="tabs"><button class="tab on" type="button" data-tab="t-nueva">Pedir justificante</button><button class="tab" type="button" data-tab="t-mias">Mis solicitudes</button></div>
+
+    <div id="t-nueva" class="card">
+      <h1>Pedir justificante</h1>
+      <p class="muted" id="n-info"></p>
+      <label>¿Por qué faltaste?</label>
+      <div class="chips" id="n-motivos"></div>
+      <div class="row">
+        <div><label for="n-ini">Primer día de la falta</label><input id="n-ini" type="date"></div>
+        <div><label for="n-fin">Último día (si fue más de uno)</label><input id="n-fin" type="date"></div>
+      </div>
+      <label for="n-desc">Cuéntanos brevemente (opcional)</label>
+      <textarea id="n-desc" maxlength="500"></textarea>
+      <label for="n-archivo" id="n-archivo-lbl">Comprobante (foto JPG/PNG o PDF)</label>
+      <input id="n-archivo" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+      <button id="n-enviar" class="full ok" type="button">Enviar solicitud</button>
+      <div id="n-msg" class="msg oculto" role="alert"></div>
+      <div id="n-res"></div>
+    </div>
+
+    <div id="t-mias" class="card oculto">
+      <h1>Mis solicitudes</h1>
+      <div id="m-lista"><p class="muted">Cargando…</p></div>
+    </div>
+  </section>
+</main>
+<footer>JustiFica · prototipo escolar con <span class="demo">datos simulados</span> · «Tu falta justificada, sin vueltas.»</footer>
+<script src="js/config.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/alumno.js"></script>
+</body>
+</html>

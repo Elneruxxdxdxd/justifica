@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com http://localhost:8088; frame-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="img/logo.svg">
+<link rel="stylesheet" href="css/estilos.css">
+<title>JustiFica · Justificante</title>
+</head>
+<body>
+<header class="top"><img src="img/logo.svg" alt=""><div><div class="brand">Justi<b>Fica</b></div><div class="sub">Justificante de inasistencia</div></div></header>
+<main>
+  <div id="j-msg" class="msg oculto" role="alert"></div>
+  <p id="j-cargando" class="muted">Cargando justificante…</p>
+  <section id="j-doc" class="card oculto">
+    <div class="doc-head">
+      <div><div class="muted">JUSTIFICANTE DE INASISTENCIA</div><h1 id="j-folio"></h1><span class="badge EMITIDO" id="j-emitido"></span></div>
+      <div class="qr"><canvas id="j-qr" aria-label="Código QR para verificar el justificante"></canvas><div class="muted">Escanea para verificar</div></div>
+    </div>
+    <table class="datos">
+      <tr><td>Alumno</td><td id="j-alumno"></td></tr>
+      <tr><td>Número de control</td><td id="j-num"></td></tr>
+      <tr><td>Carrera y grupo</td><td id="j-grupo"></td></tr>
+      <tr><td>Fechas</td><td id="j-fechas"></td></tr>
+      <tr><td>Motivo</td><td id="j-motivo"></td></tr>
+    </table>
+    <h2>Materias justificadas</h2>
+    <div class="scroll"><table><thead><tr><th>Fecha</th><th>Materia</th><th>Docente</th></tr></thead><tbody id="j-materias"></tbody></table></div>
+    <p class="nota">La falta se reconoce como situación justificada (Manual de Lineamientos Académico-Administrativos del TecNM, numeral 5.4.5.6). La reprogramación de evidencias la decide cada docente. Verificación en línea: <span id="j-url"></span></p>
+    <p class="nota demo">Documento generado por un prototipo escolar con datos simulados.</p>
+  </section>
+  <div class="noprint acciones"><button id="j-imprimir" type="button" class="oculto">Descargar PDF / Imprimir</button><a class="btn sec" href="index.html">Volver</a></div>
+</main>
+<footer>JustiFica · prototipo escolar con <span class="demo">datos simulados</span></footer>
+<script src="js/config.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/qr.js"></script>
+<script src="js/justificante.js"></script>
+</body>
+</html>

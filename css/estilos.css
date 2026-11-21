@@ -1,0 +1,54 @@
+:root{--navy:#12264A;--teal:#2A8C86;--orange:#C8641E;--gray:#5A6472;--line:#E1E8EE;--bg:#F2F6F9;--red:#B23A2A}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#1E2A38;line-height:1.45}
+header.top{background:#fff;border-bottom:3px solid var(--teal);padding:10px 16px;display:flex;align-items:center;gap:10px}
+header.top img{width:30px;height:36px}
+.brand{font-weight:bold;font-size:20px;color:var(--navy)}.brand b{color:var(--teal)}
+.sub{color:var(--gray);font-size:12px}
+.spacer{flex:1}
+.who{font-size:13px;color:var(--gray);text-align:right}
+main{max-width:780px;margin:0 auto;padding:16px}main.wide{max-width:1120px}
+.card{background:#fff;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(18,38,74,.08)}
+h1{font-size:22px;color:var(--navy);margin:4px 0 12px}
+h2{font-size:17px;color:var(--teal);margin:4px 0 10px}
+label{display:block;font-size:13px;color:var(--gray);margin:12px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1.5px solid #C9D6DF;border-radius:9px;font-size:15px;font-family:inherit;background:#FAFCFD;color:inherit}
+textarea{min-height:80px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--teal);border-color:var(--teal)}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1;min-width:150px}
+button,.btn{display:inline-block;background:var(--navy);color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:bold;cursor:pointer;text-decoration:none;min-height:44px;font-family:inherit}
+button.sec,.btn.sec{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+button.ok{background:var(--teal)}button.no{background:var(--red)}
+button.small{padding:7px 11px;font-size:13px;min-height:34px}
+button:disabled{opacity:.55;cursor:wait}
+.full{width:100%;margin-top:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid #C9D6DF;border-radius:18px;padding:9px 13px;font-size:14px;cursor:pointer;background:#fff;color:#1E2A38;font-weight:normal;min-height:40px}
+.chip.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.badge{display:inline-block;border-radius:10px;padding:3px 9px;font-size:12px;font-weight:bold}
+.EMITIDO{background:#E6F3F2;color:var(--teal)}.EN_REVISION{background:#FDF3EA;color:var(--orange)}.RECHAZADO{background:#FBEDEA;color:var(--red)}
+.msg{border-radius:10px;padding:12px;margin-top:12px;font-size:14px}
+.msg.err{background:#FBEDEA;color:#8A2A1E}.msg.okm{background:#E6F3F2;color:#1D6460}.msg.warn{background:#FDF3EA;color:#7A3F12}
+.muted{color:var(--gray);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:var(--navy);color:#fff;text-align:left;padding:8px}
+td{border-bottom:1px solid var(--line);padding:8px;vertical-align:top}
+.tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.tab{flex:1;text-align:center;background:#fff;border:1.5px solid #C9D6DF;color:var(--navy);font-weight:bold;border-radius:10px;padding:11px;cursor:pointer;min-width:120px}
+.tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.kpi{flex:1;min-width:150px;background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(18,38,74,.08)}
+.kpi b{display:block;font-size:26px;color:var(--navy)}
+.item{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.acciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.oculto{display:none !important}
+.doc-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.qr{text-align:center}.qr canvas{width:140px;height:140px;image-rendering:pixelated}
+.datos td:first-child{font-weight:bold;width:38%}
+.nota{font-size:12px;color:var(--gray);margin-top:14px}
+.scroll{overflow-x:auto}
+footer{text-align:center;color:var(--gray);font-size:12px;padding:18px}
+.demo{color:var(--orange);font-weight:bold}
+a{color:var(--teal)}
+@media print{header.top,footer,.noprint{display:none !important}body{background:#fff}.card{box-shadow:none;padding:0}}
