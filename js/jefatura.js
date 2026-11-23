@@ -60,7 +60,12 @@
   function mostrarPanel(si) { JF.mostrar('v-exp', !si); JF.mostrar('v-app', si); window.scrollTo(0, 0); }
   function verExpediente(folio, boton) {
     JF.ocupado(boton, JF.api('expediente', { folio: folio }, 'admin'), 'Abriendo…').then(function (r) {
-      if (!r.ok) return JF.msg('p-msg', 'error', r.mensaje);
+      if (!r.ok) {
+        window.scrollTo(0, 0);
+        return JF.msg('p-msg', 'error', r.regla === 'PETICION'
+          ? 'El servidor todavía no tiene la función de expediente: falta publicar la nueva versión del backend en Apps Script.'
+          : r.mensaje);
+      }
       $('x-folio').textContent = 'Folio ' + r.folio;
       JF.poner($('x-estado'), JF.badge(r.estado));
       var filas = [['Alumno', r.alumno.nombre], ['Número de control', r.alumno.num_control], ['Carrera y grupo', r.alumno.carrera + ' · ' + r.alumno.grupo],
