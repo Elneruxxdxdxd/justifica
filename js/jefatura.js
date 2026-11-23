@@ -21,7 +21,11 @@
       var tb = JF.vaciar($('rec'));
       r.recientes.forEach(function (s) {
         tb.appendChild(el('tr', null, el('td', { text: s.folio }), el('td', null, s.alumno, el('br'), el('span', { class: 'muted', text: s.grupo })),
-          el('td', null, s.motivo, el('br'), el('span', { class: 'muted', text: s.fechas })), el('td', null, JF.badge(s.estado))));
+          el('td', null, s.motivo, el('br'), el('span', { class: 'muted', text: s.fechas }),
+            s.descripcion ? el('div', { class: 'muted', text: 'Justificación: «' + s.descripcion + '»' }) : null,
+            s.comentario ? el('div', { class: 'muted', text: 'Comentario de jefatura: ' + s.comentario }) : null),
+          el('td', null, JF.badge(s.estado), s.tiene_archivo ? el('div', { class: 'acciones' },
+            el('button', { type: 'button', class: 'sec small', text: 'Ver comprobante', on: { click: function () { verComprobante(s.folio, this); } } })) : null)));
       });
       if (!r.recientes.length) tb.appendChild(el('tr', null, el('td', { colspan: 4, class: 'muted', text: 'Sin solicitudes todavía.' })));
       pintarReglas(r.reglas);

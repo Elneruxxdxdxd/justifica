@@ -556,9 +556,10 @@ function accPanel(p) {
       return { folio: s.folio, alumno: a.nombre, num_control: a.num_control, grupo: a.grupo, motivo: motivos[s.motivo], fechas: rangoTxt(s.fecha_inicio, s.fecha_fin),
         regla: s.regla_revision, descripcion: s.descripcion || null, tiene_archivo: !!s.archivo_id, creada_en: horaTxt(s.creada_en) };
     }),
-    recientes: S.slice().sort(porFecha).reverse().slice(0, 20).map(function (s) {
+    recientes: S.slice().sort(porFecha).reverse().slice(0, 30).map(function (s) {
       var a = alumnos[s.num_control];
-      return { folio: s.folio, alumno: a.nombre, grupo: a.grupo, motivo: motivos[s.motivo], estado: s.estado, fechas: rangoTxt(s.fecha_inicio, s.fecha_fin) };
+      return { folio: s.folio, alumno: a.nombre, grupo: a.grupo, motivo: motivos[s.motivo], estado: s.estado, fechas: rangoTxt(s.fecha_inicio, s.fecha_fin),
+        descripcion: s.descripcion || null, tiene_archivo: !!s.archivo_id, comentario: s.comentario || null };
     }),
     reglas: leer('Reglas').filter(function (r) { return r.editable === '1'; }).sort(function (a, b) { return a.clave < b.clave ? -1 : 1; })
       .map(function (r) { return { clave: r.clave, valor: r.valor, descripcion: r.descripcion }; })
