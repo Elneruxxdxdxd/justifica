@@ -24,8 +24,7 @@
           el('td', null, s.motivo, el('br'), el('span', { class: 'muted', text: s.fechas }),
             s.descripcion ? el('div', { class: 'muted', text: 'Justificación: «' + s.descripcion + '»' }) : null,
             s.comentario ? el('div', { class: 'muted', text: 'Comentario de jefatura: ' + s.comentario }) : null),
-          el('td', null, JF.badge(s.estado), s.tiene_archivo ? el('div', { class: 'acciones' },
-            el('button', { type: 'button', class: 'sec small', text: 'Ver comprobante', on: { click: function () { verComprobante(s.folio, this); } } })) : null)));
+          el('td', null, JF.badge(s.estado), s.tiene_archivo ? el('div', { class: 'muted', text: 'Con comprobante' }) : null, el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'sec small', text: 'Ver expediente', on: { click: function () { verExpediente(s.folio, this); } } })))));
       });
       if (!r.recientes.length) tb.appendChild(el('tr', null, el('td', { colspan: 4, class: 'muted', text: 'Sin solicitudes todavía.' })));
       pintarReglas(r.reglas);
@@ -44,7 +43,7 @@
           cargar(r.estado === 'EMITIDO' ? 'Folio ' + r.folio + ' aprobado: se avisó al alumno y a ' + r.avisos + ' docente(s).' : 'Folio ' + r.folio + ' marcado como «no procede»; el alumno recibió el motivo por correo.');
         });
       }
-      var bVer = s.tiene_archivo ? el('button', { type: 'button', class: 'sec small', text: 'Ver comprobante', on: { click: function () { verComprobante(s.folio, this); } } }) : null;
+      var bVer = el('button', { type: 'button', class: 'sec small', text: 'Ver expediente', on: { click: function () { verExpediente(s.folio, this); } } });
       var bSi = el('button', { type: 'button', class: 'ok small', text: 'Aprobar', on: { click: function () { decidir('APROBAR', this); } } });
       var bNo = el('button', { type: 'button', class: 'no small', text: 'No procede', on: { click: function () { decidir('RECHAZAR', this); } } });
       cont.appendChild(el('div', { class: 'item' },
@@ -56,20 +55,38 @@
     });
   }
 
-  function verComprobante(folio, boton) {
-    var ventana = window.open('', '_blank');   // se abre antes para que el navegador no la bloquee
-    JF.ocupado(boton, JF.api('comprobante', { folio: folio }, 'admin'), 'Abriendo…').then(function (r) {
-      if (!r.ok || ['application/pdf', 'image/jpeg', 'image/png'].indexOf(r.tipo) < 0) {
-        if (ventana) ventana.close();
-        return JF.msg('p-msg', 'error', r.mensaje || 'Tipo de archivo no permitido.');
-      }
-      var blob = JF.blobDeBase64(r.b64, r.tipo);
-      var url = URL.createObjectURL(blob);
-      if (ventana) { ventana.opener = null; ventana.location.href = url; }
-      else JF.descargar(blob, r.nombre || 'comprobante');
-      setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
+  // ---------- expediente completo ----------
+  var urlArchivo = null;
+  function mostrarPanel(si) { JF.mostrar('v-exp', !si); JF.mostrar('v-app', si); window.scrollTo(0, 0); }
+  function verExpediente(folio, boton) {
+    JF.ocupado(boton, JF.api('expediente', { folio: folio }, 'admin'), 'Abriendo…').then(function (r) {
+      if (!r.ok) return JF.msg('p-msg', 'error', r.mensaje);
+      $('x-folio').textContent = 'Folio ' + r.folio;
+      JF.poner($('x-estado'), JF.badge(r.estado));
+      var filas = [['Alumno', r.alumno.nombre], ['Número de control', r.alumno.num_control], ['Carrera y grupo', r.alumno.carrera + ' · ' + r.alumno.grupo],
+        ['Motivo', r.motivo], ['Fechas de la falta', r.fechas], ['Solicitada', r.creada_en], ['Evento', r.evento],
+        ['Regla que la mandó a revisión', r.regla_revision], ['Resuelta', r.resuelta_en ? r.resuelta_en + (r.resuelta_por ? ' · por ' + r.resuelta_por : '') : 'Pendiente'],
+        ['Comentario de jefatura', r.comentario]];
+      JF.poner($('x-datos'));
+      filas.forEach(function (f) { if (f[1]) $('x-datos').appendChild(el('tr', null, el('td', { text: f[0] }), el('td', { text: f[1] }))); });
+      $('x-desc').textContent = r.descripcion ? '«' + r.descripcion + '»' : 'El alumno no escribió justificación.';
+      var tb = JF.vaciar($('x-materias'));
+      r.materias.forEach(function (m) { tb.appendChild(el('tr', null, el('td', { text: m.fecha }), el('td', { text: m.materia }), el('td', { text: m.docente }))); });
+      if (!r.materias.length) tb.appendChild(el('tr', null, el('td', { colspan: 3, class: 'muted', text: 'Sin materias registradas.' })));
+      if (urlArchivo) { URL.revokeObjectURL(urlArchivo); urlArchivo = null; }
+      var caja = JF.vaciar($('x-archivo'));
+      if (r.archivo && ['image/jpeg', 'image/png', 'application/pdf'].indexOf(r.archivo.tipo) >= 0) {
+        urlArchivo = URL.createObjectURL(JF.blobDeBase64(r.archivo.b64, r.archivo.tipo));
+        caja.appendChild(el('p', { class: 'muted', text: 'Archivo: ' + r.archivo.nombre }));
+        caja.appendChild(r.archivo.tipo === 'application/pdf'
+          ? el('iframe', { class: 'comprobante-pdf', src: urlArchivo, title: 'Comprobante PDF' })
+          : el('img', { class: 'comprobante', src: urlArchivo, alt: 'Comprobante de ' + r.alumno.nombre }));
+      } else caja.appendChild(el('p', { class: 'muted', text: 'Esta solicitud no tiene comprobante.' }));
+      mostrarPanel(false);
     });
   }
+  $('x-volver').addEventListener('click', function () { mostrarPanel(true); });
+  $('x-imprimir').addEventListener('click', function () { window.print(); });
 
   function pintarReglas(reglas) {
     var cont = JF.vaciar($('reglas'));

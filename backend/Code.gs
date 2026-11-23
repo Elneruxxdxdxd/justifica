@@ -186,7 +186,7 @@ function salida(obj) {
 var ACCIONES = {
   config: accConfig, login_alumno: accLoginAlumno, login_admin: accLoginAdmin, logout: accLogout,
   registrar: accRegistrar, mis_solicitudes: accMisSolicitudes, justificante: accJustificante, verificar: accVerificar,
-  panel: accPanel, revisar: accRevisar, comprobante: accComprobante, reglas: accGuardarReglas, reporte: accReporte, evento: accEvento
+  panel: accPanel, revisar: accRevisar, comprobante: accComprobante, expediente: accExpediente, reglas: accGuardarReglas, reporte: accReporte, evento: accEvento
 };
 
 // ============================ tablas (hoja de cálculo) ============================
@@ -564,6 +564,28 @@ function accPanel(p) {
     reglas: leer('Reglas').filter(function (r) { return r.editable === '1'; }).sort(function (a, b) { return a.clave < b.clave ? -1 : 1; })
       .map(function (r) { return { clave: r.clave, valor: r.valor, descripcion: r.descripcion }; })
   });
+}
+
+// Expediente completo de una solicitud (solo jefatura): datos, justificación, decisión, materias y comprobante
+function accExpediente(p) {
+  var ses = sesion(p, ['JEFATURA']);
+  if (!ses) return SIN_SESION();
+  var s = solicitud(String(p.folio || ''));
+  if (!s) return error('FOLIO', 'No existe ese folio.');
+  log(ses.sujeto, 'VER_EXPEDIENTE', s.folio);
+  var d = detalle(s.folio), ev = s.evento_id ? buscar('Eventos', function (x) { return x.id === s.evento_id; }) : null;
+  var r = { ok: true, folio: d.folio, estado: d.estado, motivo: d.motivo, fechas: d.fechas,
+    alumno: { num_control: d.alumno.num_control, nombre: d.alumno.nombre, grupo: d.alumno.grupo, carrera: d.alumno.carrera, semestre: d.alumno.semestre },
+    descripcion: s.descripcion || null, regla_revision: d.regla_revision, comentario: d.comentario,
+    creada_en: d.creada_en, resuelta_en: d.resuelta_en, resuelta_por: s.resuelta_por || null,
+    evento: ev ? ev.nombre + ' · ' + ev.area : null,
+    materias: d.materias.length ? d.materias : materiasAfectadas(s.num_control, s.fecha_inicio, s.fecha_fin).map(function (f) {
+      var m = buscar('Materias', function (x) { return x.clave === f.materia_clave; }), dc = buscar('Docentes', function (x) { return x.id === f.docente_id; });
+      return { fecha: fechaTxt(f.fecha), materia: m.nombre, docente: dc.nombre };
+    }),
+    archivo: null };
+  if (s.archivo_id) r.archivo = { nombre: s.archivo_nombre, tipo: s.archivo_tipo, b64: Utilities.base64Encode(DriveApp.getFileById(s.archivo_id).getBlob().getBytes()) };
+  return resp(r);
 }
 
 function accComprobante(p) {

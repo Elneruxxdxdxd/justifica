@@ -17,6 +17,7 @@ window.JFAdmin = (function () {
   function salir(mensaje) {
     if (JF.sesion.leer('admin')) JF.api('logout', {}, 'admin');
     JF.sesion.borrar('admin'); clearTimeout(temporizador);
+    if ($('v-exp')) JF.mostrar('v-exp', false);
     JF.mostrar('v-app', false); JF.mostrar('quien', false); JF.mostrar('v-login', true);
     $('l-pass').value = '';
     JF.msg('l-msg', 'aviso', mensaje || '');

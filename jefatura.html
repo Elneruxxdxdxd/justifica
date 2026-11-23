@@ -22,6 +22,20 @@
     <button id="l-entrar" class="full" type="button">Entrar</button>
     <div id="l-msg" class="msg oculto" role="alert"></div>
   </section>
+  <section id="v-exp" class="card oculto">
+    <div class="doc-head">
+      <div><div class="muted">EXPEDIENTE DE SOLICITUD</div><h1 id="x-folio"></h1><span id="x-estado"></span></div>
+      <div class="acciones noprint"><button id="x-imprimir" type="button" class="sec">Imprimir / PDF</button><button id="x-volver" type="button">Volver al panel</button></div>
+    </div>
+    <table class="datos" id="x-datos"></table>
+    <h2>Justificación del alumno</h2>
+    <p id="x-desc"></p>
+    <h2>Materias afectadas</h2>
+    <div class="scroll"><table><thead><tr><th>Fecha</th><th>Materia</th><th>Docente</th></tr></thead><tbody id="x-materias"></tbody></table></div>
+    <h2>Comprobante</h2>
+    <div id="x-archivo"></div>
+  </section>
+
   <section id="v-app" class="oculto">
     <div class="kpis" id="kpis"></div>
     <div class="tabs" id="tabs">
