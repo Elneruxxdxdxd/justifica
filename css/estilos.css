@@ -3,7 +3,7 @@
 html,body{margin:0}
 body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#1E2A38;line-height:1.45}
 header.top{background:#fff;border-bottom:3px solid var(--teal);padding:10px 16px;display:flex;align-items:center;gap:10px}
-header.top img{width:30px;height:36px}
+
 .brand{font-weight:bold;font-size:20px;color:var(--navy)}.brand b{color:var(--teal)}
 .sub{color:var(--gray);font-size:12px}
 .spacer{flex:1}
