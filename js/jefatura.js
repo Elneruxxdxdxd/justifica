@@ -78,6 +78,12 @@
       var tb = JF.vaciar($('x-materias'));
       r.materias.forEach(function (m) { tb.appendChild(el('tr', null, el('td', { text: m.fecha }), el('td', { text: m.materia }), el('td', { text: m.docente }))); });
       if (!r.materias.length) tb.appendChild(el('tr', null, el('td', { colspan: 3, class: 'muted', text: 'Sin materias registradas.' })));
+      var cajaAn = JF.vaciar($('x-analisis'));
+      if (r.analisis && r.analisis.resumen && r.analisis.resumen.length) {
+        cajaAn.appendChild(el('div', { class: r.analisis.alertas ? 'msg warn' : 'msg okm' },
+          el('b', { text: 'Revisión automática del comprobante' }),
+          el('ul', { class: 'analisis' }, r.analisis.resumen.map(function (l) { return el('li', { text: l }); }))));
+      }
       if (urlArchivo) { URL.revokeObjectURL(urlArchivo); urlArchivo = null; }
       var caja = JF.vaciar($('x-archivo'));
       if (r.archivo && ['image/jpeg', 'image/png', 'application/pdf'].indexOf(r.archivo.tipo) >= 0) {

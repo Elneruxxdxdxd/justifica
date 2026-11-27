@@ -57,7 +57,8 @@ function instalar() {
     Eventos: ['id', 'nombre', 'area', 'fecha_inicio', 'fecha_fin', 'cargado_por', 'creado_en'],
     EventoAsistentes: ['evento_id', 'num_control'],
     AlertasTutor: ['num_control', 'periodo', 'total', 'enviada_en'],
-    Bitacora: ['ts', 'actor', 'accion', 'folio', 'detalle']
+    Bitacora: ['ts', 'actor', 'accion', 'folio', 'detalle'],
+    Analisis: ['folio', 'num_control', 'hash', 'leido', 'es_medico', 'puntaje', 'cedula', 'cedula_estado', 'fecha_doc', 'fecha_estado', 'duplicado_de', 'parecido_a', 'palabras', 'resumen', 'creado_en']
   };
   var primera = ss.getSheets()[0];
   Object.keys(T).forEach(function (n, i) {
@@ -386,7 +387,8 @@ function detalle(folio) {
     front_url: regla('front_url'), correo_jefatura: regla('correo_jefatura'),
     alumno: { num_control: a.num_control, nombre: a.nombre, correo: a.correo, grupo: a.grupo, carrera: g.carrera, semestre: Number(g.semestre) },
     materias: filas.map(function (f) { return { fecha: fechaTxt(f.fecha), materia: f.materia, docente: f.docente.nombre }; }),
-    avisos: avisos.map(function (v) { return { docente: v.docente, correo: v.correo, detalle: v.partes.join(', ') }; })
+    avisos: avisos.map(function (v) { return { docente: v.docente, correo: v.correo, detalle: v.partes.join(', ') }; }),
+    analisis: analisisDe(folio)
   };
 }
 function vistaAlumno(d) {
@@ -457,7 +459,10 @@ function accRegistrar(p) {
   if (!materiasAfectadas(a.num_control, ini, fin).length) return error('SIN_CLASES', 'No tienes clases registradas en esas fechas.');
 
   var reglaRev = null, evento = null;
-  if (m.requiere_lista === '1') {
+  // Revisión automática del comprobante (lectura del texto, cédula, fecha y duplicados)
+  var analisis = bytes ? analizarComprobante(bytes, tipo, nombre, a.num_control, ini, fin, h, m.clave === 'salud') : null;
+  if (analisis && analisis.motivo_revision) reglaRev = analisis.motivo_revision;
+  if (!reglaRev && m.requiere_lista === '1') {
     var evs = leer('Eventos').filter(function (e) { return e.fecha_inicio <= ini && e.fecha_fin >= fin && buscar('EventoAsistentes', function (x) { return x.evento_id === e.id && x.num_control === a.num_control; }); });
     if (evs.length) evento = evs[evs.length - 1].id; else reglaRev = 'Tu nombre no está en una lista oficial de evento para esas fechas';
   }
@@ -471,6 +476,7 @@ function accRegistrar(p) {
     descripcion: desc || '', archivo_id: archivoId, archivo_nombre: nombre || '', archivo_tipo: tipo || '', estado: 'EN_REVISION',
     regla_revision: reglaRev || '', evento_id: evento || '', creada_en: new Date().toISOString() });
   log(a.num_control, 'SOLICITUD', folio, { motivo: m.clave, regla_revision: reglaRev });
+  if (analisis) guardarAnalisis(folio, a.num_control, analisis);
   var d = reglaRev ? detalle(folio) : emitir(folio, 'sistema');
   d.tipo = reglaRev ? 'REVISION' : 'EMITIDO';
   return resp(vistaAlumno(d), d);
@@ -583,7 +589,7 @@ function accExpediente(p) {
       var m = buscar('Materias', function (x) { return x.clave === f.materia_clave; }), dc = buscar('Docentes', function (x) { return x.id === f.docente_id; });
       return { fecha: fechaTxt(f.fecha), materia: m.nombre, docente: dc.nombre };
     }),
-    archivo: null };
+    archivo: null, analisis: d.analisis };
   if (s.archivo_id) r.archivo = { nombre: s.archivo_nombre, tipo: s.archivo_tipo, b64: Utilities.base64Encode(DriveApp.getFileById(s.archivo_id).getBlob().getBytes()) };
   return resp(r);
 }
@@ -681,6 +687,209 @@ function accEvento(p) {
     { tipo: 'EVENTO', evento: nom, emitidos: emitidos });
 }
 
+// ============================ revisión automática del comprobante ============================
+// 1) Lee el texto de la foto o PDF con el OCR de Google Drive (tipo «Google Lens»).
+// 2) Decide si parece un documento médico (palabras clave con puntaje).
+// 3) Busca la cédula profesional y la consulta en el Registro Nacional de Profesionistas (SEP).
+// 4) Busca la fecha del documento y revisa que sea coherente con las fechas de la falta.
+// 5) Revisa que el archivo no se haya enviado antes (huella SHA-256) y que el texto no sea
+//    casi idéntico al comprobante de otro alumno.
+// Nada de esto se le muestra al alumno; el resumen va a la jefatura y a los docentes.
+var PALABRAS_MEDICAS = {
+  receta: 2, 'cedula profesional': 2, diagnostico: 2, medico: 2, medica: 2, incapacidad: 2, consultorio: 2, clinica: 2, hospital: 2,
+  paciente: 2, imss: 2, issste: 2, 'centro de salud': 2, urgencias: 2, 'certificado medico': 2, 'constancia medica': 2,
+  'dr ': 1, 'dra ': 1, 'dr.': 1, 'dra.': 1, tratamiento: 1, reposo: 1, ' mg': 1, tableta: 1, capsula: 1, 'cada 8 horas': 1, 'cada 12 horas': 1, 'cada 24 horas': 1,
+  farmacia: 1, edad: 1, peso: 1, temperatura: 1, presion: 1, alergias: 1, indicaciones: 1, cirujano: 1, medicina: 1, consulta: 1
+};
+var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function normalizar(t) {
+  return ' ' + String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9/.:#\-\s]/g, ' ').replace(/\s+/g, ' ') + ' ';
+}
+function sha256Bytes(bytes) { return hex(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)); }
+
+// OCR: convierte el archivo a un documento de Google (Drive hace el reconocimiento de texto), lo exporta como texto y lo borra.
+function ocrTexto(bytes, tipo, nombre) {
+  var token = ScriptApp.getOAuthToken(), id = null, auth = { Authorization: 'Bearer ' + token };
+  try {
+    if (typeof Drive !== 'undefined' && Drive.Files) {
+      var blob = Utilities.newBlob(bytes, tipo, nombre);
+      if (Drive.Files.create) id = Drive.Files.create({ name: 'jf-ocr', mimeType: 'application/vnd.google-apps.document' }, blob, { ocrLanguage: 'es' }).id;
+      else id = Drive.Files.insert({ title: 'jf-ocr', mimeType: 'application/vnd.google-apps.document' }, blob, { ocr: true, ocrLanguage: 'es' }).id;
+    } else {
+      var lim = 'jf' + hexAleatorio(24);
+      var cabeza = '--' + lim + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify({ name: 'jf-ocr', mimeType: 'application/vnd.google-apps.document' }) + '\r\n--' + lim + '\r\nContent-Type: ' + tipo + '\r\n\r\n';
+      var cuerpo = Utilities.newBlob(cabeza).getBytes().concat(bytes).concat(Utilities.newBlob('\r\n--' + lim + '--').getBytes());
+      var r = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=es&fields=id',
+        { method: 'post', contentType: 'multipart/related; boundary=' + lim, payload: cuerpo, headers: auth, muteHttpExceptions: true });
+      if (r.getResponseCode() >= 300) throw new Error('OCR ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160));
+      id = JSON.parse(r.getContentText()).id;
+    }
+    var t = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id + '/export?mimeType=text/plain', { headers: auth, muteHttpExceptions: true });
+    if (t.getResponseCode() >= 300) throw new Error('EXPORT ' + t.getResponseCode());
+    return t.getContentText('UTF-8');
+  } finally {
+    if (id) { try { UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id, { method: 'delete', headers: auth, muteHttpExceptions: true }); } catch (e) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e2) { /* nada */ } } }
+  }
+}
+
+function puntajeMedico(n) {
+  var total = 0, vistas = [];
+  Object.keys(PALABRAS_MEDICAS).forEach(function (k) { if (n.indexOf(k) >= 0) { total += PALABRAS_MEDICAS[k]; vistas.push(k.trim()); } });
+  return { total: total, palabras: vistas };
+}
+
+function buscarCedula(n) {
+  var m = /c\s?e?d(?:ula)?\.?\s*(?:prof(?:esional)?\.?)?\s*(?:no\.?|num\.?|numero|#)?\s*[:.]?\s*(\d{7,8})(?!\d)/.exec(n);
+  if (m) return m[1];
+  var i = n.indexOf('cedula');
+  if (i >= 0) { var m2 = /(?:^|\D)(\d{7,8})(?!\d)/.exec(n.slice(i, i + 60)); if (m2) return m2[1]; }
+  return null;
+}
+
+// Consulta en el Registro Nacional de Profesionistas de la SEP. Si el servicio no responde, se dice así (no se inventa un resultado).
+function consultarCedula(cedula) {
+  try {
+    var r = UrlFetchApp.fetch('https://www.cedulaprofesional.sep.gob.mx/cedula/buscaCedulaJson.action', {
+      method: 'post', muteHttpExceptions: true, followRedirects: true,
+      payload: { json: JSON.stringify({ maxResult: '1000', nombre: '', paterno: '', materno: '', idCedula: cedula }) } });
+    if (r.getResponseCode() !== 200) return { estado: 'SIN_CONSULTA' };
+    var j = JSON.parse(r.getContentText());
+    var items = (j && j.items) || [];
+    if (!Array.isArray(items)) return { estado: 'SIN_CONSULTA' };
+    var it = items.filter(function (x) { return String(x.idCedula || '') === cedula; })[0] || (items.length === 1 ? items[0] : null);
+    if (!it) return { estado: 'NO_ENCONTRADA' };
+    var titulo = String(it.titulo || it.desc || '').trim();
+    return { estado: 'VALIDA', nombre: [it.nombre, it.paterno, it.materno].filter(String).join(' ').trim(), titulo: titulo,
+      es_salud: /medic|cirujan|enfermer|odontolog|psicolog|pediatr|salud/i.test(normalizar(titulo)) };
+  } catch (e) { return { estado: 'SIN_CONSULTA' }; }
+}
+
+function buscarFechas(n, h) {
+  var out = [], add = function (d, m, y) {
+    if (y < 100) y += 2000;
+    var s = y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+    if (fecha({ f: s }, 'f') && y >= 2000 && s <= sumarDias(h, 1) && out.indexOf(s) < 0) out.push(s);
+  };
+  var re = /(?:^|\D)(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?!\d)/g, m;
+  while ((m = re.exec(n))) add(Number(m[1]), Number(m[2]), Number(m[3]));
+  re = /(?:^|\D)(\d{1,2})\s*(?:de\s+)?(ene|feb|mar|abr|may|jun|jul|ago|sep|set|oct|nov|dic)[a-z]*\.?\s*(?:de(?:l)?\s+)?(\d{4})/g;
+  while ((m = re.exec(n))) add(Number(m[1]), m[2] === 'set' ? 9 : MESES.indexOf(m[2]) + 1, Number(m[3]));
+  re = /(?:^|\D)(\d{4})-(\d{2})-(\d{2})(?!\d)/g;
+  while ((m = re.exec(n))) add(Number(m[3]), Number(m[2]), Number(m[1]));
+  return out;
+}
+
+function palabras(n) {
+  var vistas = {}, out = [];
+  n.split(' ').forEach(function (w) { w = w.replace(/[^a-z0-9]/g, ''); if (w.length >= 4 && !vistas[w] && out.length < 400) { vistas[w] = 1; out.push(w); } });
+  return out;
+}
+function parecido(a, b) {
+  if (a.length < 15 || b.length < 15) return 0;
+  var sb = {}; b.forEach(function (w) { sb[w] = 1; });
+  var comunes = a.filter(function (w) { return sb[w]; }).length;
+  return comunes / (a.length + b.length - comunes);
+}
+
+function hojaAnalisis() {
+  var libroAbierto = libro(), sh = libroAbierto.getSheetByName('Analisis');
+  if (!sh) {
+    var cab = ['folio', 'num_control', 'hash', 'leido', 'es_medico', 'puntaje', 'cedula', 'cedula_estado', 'fecha_doc', 'fecha_estado', 'duplicado_de', 'parecido_a', 'palabras', 'resumen', 'creado_en'];
+    sh = libroAbierto.insertSheet('Analisis');
+    sh.getRange(1, 1, sh.getMaxRows(), cab.length).setNumberFormat('@');
+    sh.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function analizarComprobante(bytes, tipo, nombre, num, ini, fin, h, esSalud) {
+  hojaAnalisis();
+  var res = { hash: sha256Bytes(bytes), leido: false, es_medico: null, puntaje: 0, cedula: null, cedula_estado: 'NO_APLICA', cedula_info: null,
+    fecha_doc: null, fecha_estado: 'NO_APLICA', duplicado_de: null, parecido_a: null, palabras: [], resumen: [], motivo_revision: null };
+  var previos = leer('Analisis');
+
+  // Archivo idéntico enviado antes (por cualquier alumno)
+  var igual = previos.filter(function (x) { return x.hash === res.hash; })[0];
+  if (igual) res.duplicado_de = { folio: igual.folio, mismo_alumno: igual.num_control === num };
+
+  // Lectura del texto
+  var texto = '';
+  try { texto = ocrTexto(bytes, tipo, nombre); res.leido = true; } catch (e) { log('sistema', 'ERROR_OCR', null, { error: String(e.message || e).slice(0, 200) }); }
+  var n = normalizar(texto);
+  res.palabras = palabras(n);
+
+  if (res.leido) {
+    var p = puntajeMedico(n);
+    res.puntaje = p.total; res.es_medico = p.total >= 4;
+    res.cedula = buscarCedula(n);
+    if (res.cedula) { res.cedula_info = consultarCedula(res.cedula); res.cedula_estado = res.cedula_info.estado; }
+    else res.cedula_estado = 'NO_ENCONTRADA_EN_DOC';
+    var fechas = buscarFechas(n, h), desde = sumarDias(ini, -3), hasta = sumarDias(fin, 2);
+    var buenas = fechas.filter(function (f) { return f >= desde && f <= hasta; });
+    if (buenas.length) { res.fecha_doc = buenas[0]; res.fecha_estado = 'COHERENTE'; }
+    else if (fechas.length) { res.fecha_doc = fechas[0]; res.fecha_estado = 'INCOHERENTE'; }
+    else res.fecha_estado = 'SIN_FECHA';
+    // Texto casi idéntico al comprobante de otro alumno
+    var mejor = null;
+    previos.forEach(function (x) {
+      if (x.num_control === num || !x.palabras) return;
+      var v = parecido(res.palabras, x.palabras.split(' '));
+      if (v >= 0.9 && (!mejor || v > mejor.v)) mejor = { folio: x.folio, v: v };
+    });
+    if (mejor) res.parecido_a = { folio: mejor.folio, porcentaje: Math.round(mejor.v * 100) };
+  }
+
+  // Resumen en palabras sencillas
+  var R = res.resumen;
+  R.push(res.duplicado_de ? '✗ El mismo archivo ya se había enviado en el folio ' + res.duplicado_de.folio + (res.duplicado_de.mismo_alumno ? ' (mismo alumno)' : ' (otro alumno)') + '.'
+    : '✓ Archivo único: no se había enviado antes.');
+  if (!res.leido) R.push('• No se pudo leer el texto del comprobante automáticamente.');
+  else {
+    if (esSalud) R.push(res.es_medico ? '✓ Parece un documento médico (' + p.palabras.slice(0, 4).join(', ') + ').' : '✗ No parece un documento médico.');
+    var ci = res.cedula_info;
+    if (res.cedula_estado === 'VALIDA') R.push('✓ Cédula profesional ' + res.cedula + ' registrada en la SEP a nombre de ' + ci.nombre + (ci.titulo ? ' (' + ci.titulo + ')' : '') + '.' + (ci.es_salud ? '' : ' Ojo: el título no es del área de la salud.'));
+    else if (res.cedula_estado === 'NO_ENCONTRADA') R.push('✗ La cédula ' + res.cedula + ' no aparece en el Registro Nacional de Profesionistas.');
+    else if (res.cedula_estado === 'SIN_CONSULTA') R.push('• Cédula ' + res.cedula + ' encontrada en el documento; el registro de la SEP no respondió, verificar en cedulaprofesional.sep.gob.mx.');
+    else if (esSalud) R.push('• No se encontró número de cédula profesional en el documento.');
+    if (res.fecha_estado === 'COHERENTE') R.push('✓ Fecha del documento ' + fechaTxt(res.fecha_doc) + ': coherente con la falta.');
+    else if (res.fecha_estado === 'INCOHERENTE') R.push('✗ La fecha del documento (' + fechaTxt(res.fecha_doc) + ') no corresponde a las fechas de la falta.');
+    else R.push('• No se encontró la fecha en el documento.');
+    if (res.parecido_a) R.push('✗ El texto es ' + res.parecido_a.porcentaje + '% igual al comprobante del folio ' + res.parecido_a.folio + ' de otro alumno.');
+  }
+
+  // ¿Necesita revisión humana?
+  if (res.duplicado_de) res.motivo_revision = 'El mismo comprobante ya se había enviado en otra solicitud';
+  else if (res.parecido_a) res.motivo_revision = 'El comprobante es casi idéntico al de otra solicitud';
+  else if (esSalud && res.leido && !res.es_medico) res.motivo_revision = 'La revisión automática no reconoció el comprobante como documento médico';
+  else if (esSalud && res.cedula_estado === 'NO_ENCONTRADA') res.motivo_revision = 'La cédula profesional del comprobante no aparece en el registro de la SEP';
+  else if (res.fecha_estado === 'INCOHERENTE') res.motivo_revision = 'La fecha del comprobante no coincide con las fechas de la falta';
+  return res;
+}
+
+function guardarAnalisis(folio, num, r) {
+  agregar('Analisis', { folio: folio, num_control: num, hash: r.hash, leido: r.leido ? '1' : '0', es_medico: r.es_medico === null ? '' : (r.es_medico ? '1' : '0'),
+    puntaje: String(r.puntaje), cedula: r.cedula || '', cedula_estado: r.cedula_estado, fecha_doc: r.fecha_doc || '', fecha_estado: r.fecha_estado,
+    duplicado_de: r.duplicado_de ? r.duplicado_de.folio : '', parecido_a: r.parecido_a ? r.parecido_a.folio : '', palabras: r.palabras.join(' '),
+    resumen: JSON.stringify(r.resumen), creado_en: new Date().toISOString() });
+  log('sistema', 'ANALISIS_COMPROBANTE', folio, { cedula: r.cedula_estado, fecha: r.fecha_estado, duplicado: !!r.duplicado_de, revision: r.motivo_revision });
+}
+
+function analisisDe(folio) {
+  if (!libro().getSheetByName('Analisis')) return null;
+  var x = buscar('Analisis', function (y) { return y.folio === folio; });
+  if (!x) return null;
+  var lineas = []; try { lineas = JSON.parse(x.resumen); } catch (e) { lineas = []; }
+  return { resumen: lineas, alertas: lineas.filter(function (l) { return l.charAt(0) === '✗'; }).length };
+}
+
+function resumenHtml(an) {
+  if (!an || !an.resumen || !an.resumen.length) return '';
+  return '<b>Revisión automática del comprobante:</b><br>' + an.resumen.map(esc).join('<br>');
+}
+
 // ============================ tareas automáticas ============================
 function tareaRecordatorio() {
   var h = hoy();
@@ -708,7 +917,7 @@ function correoHtml(titulo, parrafos, boton) {
   return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;border:1px solid #E1E8EE;border-radius:12px;overflow:hidden">' +
     '<div style="background:' + NAVY + ';color:#fff;padding:14px 18px;font-size:18px;font-weight:bold">Justi<span style="color:#7FD1CB">Fica</span></div>' +
     '<div style="padding:18px;color:#1E2A38;font-size:15px;line-height:1.5"><h2 style="color:' + NAVY + ';font-size:18px;margin:0 0 10px">' + esc(titulo) + '</h2>' +
-    parrafos.map(function (p) { return '<p style="margin:0 0 10px">' + p + '</p>'; }).join('') +
+    parrafos.filter(function (p) { return p; }).map(function (p) { return '<p style="margin:0 0 10px">' + p + '</p>'; }).join('') +
     (boton ? '<p style="margin:18px 0 6px"><a href="' + esc(boton.url) + '" style="background:' + TEAL + ';color:#fff;text-decoration:none;padding:11px 16px;border-radius:8px;font-weight:bold">' + esc(boton.texto) + '</a></p>' : '') +
     '</div><div style="background:#F2F6F9;color:' + GRAY + ';font-size:12px;padding:10px 18px">Correo automático de JustiFica (prototipo escolar con datos simulados). No respondas a este mensaje.</div></div>';
 }
@@ -723,6 +932,7 @@ function correosEmitido(d) {
       'Estimado(a) ' + esc(a.docente) + ':',
       'El alumno <b>' + esc(d.alumno.nombre) + '</b> (' + esc(d.alumno.num_control) + ', grupo ' + esc(d.alumno.grupo) + ') tiene justificada su inasistencia en: <b>' + esc(a.detalle) + '</b>.',
       'Motivo general: ' + esc(d.motivo) + '. Folio: <b>' + esc(d.folio) + '</b>.',
+      resumenHtml(d.analisis),
       'Conforme al numeral 5.4.5.6 del lineamiento de evaluación del TecNM, la reprogramación de evidencias queda a su criterio.'],
       { texto: 'Verificar el folio', url: url(d.front_url, 'verificar.html', { folio: d.folio }) }) });
   });
@@ -749,7 +959,7 @@ function construirCorreos(i) {
       'La revisará la jefatura porque: <b>' + esc(i.regla_revision) + '</b>.', 'Te avisaremos por correo en cuanto se resuelva.']) },
     { to: i.correo_jefatura, subject: 'Nuevo caso por revisar · ' + i.folio, html: correoHtml('Hay un caso que necesita tu revisión', [
       'Folio <b>' + esc(i.folio) + '</b> · ' + esc(i.alumno.nombre) + ' (' + esc(i.alumno.grupo) + ') · ' + esc(i.motivo) + ' · ' + esc(i.fechas) + '.',
-      'Regla no cumplida: <b>' + esc(i.regla_revision) + '</b>.'], { texto: 'Abrir el panel de jefatura', url: url(i.front_url, 'jefatura.html') }) }];
+      'Regla no cumplida: <b>' + esc(i.regla_revision) + '</b>.', resumenHtml(i.analisis)], { texto: 'Abrir el panel de jefatura', url: url(i.front_url, 'jefatura.html') }) }];
   if (i.tipo === 'RECHAZO') return [{ to: i.alumno.correo, subject: 'Solicitud ' + i.folio + ' no procedió', html: correoHtml('Tu solicitud no procedió', [
     'Hola, ' + esc(i.alumno.nombre) + '. La jefatura revisó tu solicitud <b>' + esc(i.folio) + '</b> (' + esc(i.fechas) + ') y no procedió.',
     'Motivo: <b>' + esc(i.comentario) + '</b>.', 'Si tienes dudas, acude con tu coordinación de carrera.']) }];
